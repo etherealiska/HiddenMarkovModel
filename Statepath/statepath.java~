@@ -1,0 +1,186 @@
+import java.util.Scanner;
+import java.io.*;
+import java.util.ArrayList;
+import java.text.*;
+public class statepath {
+ public static void main(String args[]) throws IOException {
+   File hmm = new File("sentence.hmm");
+   File obs = new File("example1.obs");
+   Scanner scan = new Scanner(hmm);
+   int N = scan.nextInt();
+   int M = scan.nextInt();
+   int T = scan.nextInt();
+   scan.nextLine();
+   String[] syntax = scan.nextLine().split("\\s+");
+   String[] vocab = scan.nextLine().split("\\s+");
+   scan.nextLine();
+   int rows = 0;
+   ArrayList<ArrayList<Double>> amat = new ArrayList<ArrayList<Double>>();
+   ArrayList<ArrayList<Double>> bmat = new ArrayList<ArrayList<Double>>();
+   double[] pi = new double[N];
+   
+   while(scan.hasNextDouble()) {
+     amat.add(new ArrayList<Double>());
+     String line = scan.nextLine();
+     int count = line.split("\\s+").length;
+     Scanner newScan = new Scanner(line);
+     for (int i = 0; i < count; i++) {
+       amat.get(rows).add(newScan.nextDouble());
+     }
+     rows++;
+   }
+ 
+   scan.nextLine();
+   rows = 0;
+   while(scan.hasNextDouble()) {
+     bmat.add(new ArrayList<Double>());
+     String line = scan.nextLine();
+     int count = line.split("\\s+").length;
+     Scanner newScan = new Scanner(line);
+     for (int i = 0; i < count; i++) {
+       bmat.get(rows).add(newScan.nextDouble());
+     }
+     rows++;
+   }
+   
+   scan.nextLine();
+   for (int i = 0; i < N; i++) {
+     pi[i] = scan.nextFloat();
+   }
+   
+   scan = new Scanner(obs);
+   int numsets = scan.nextInt();
+   scan.nextLine();
+   int[] numobs = new int[numsets];
+   ArrayList<String[]> observ = new ArrayList<String[]>();
+   for (int i = 0; i < numsets; i++) {
+     numobs[i] = scan.nextInt();
+     scan.nextLine();
+     observ.add(scan.nextLine().split("\\s+"));
+   }
+   
+/*   for (int h = 0; h < numsets; h++) {
+     double[][] alphas = new double[N][numobs[h]];
+     for (int k = 0; k < alphas.length; k++) {
+       alphas[k][0] = pi[k]*vocabmatch(observ.get(h)[0], k, vocab, bmat);
+     }
+     for (int t = 1; t < numobs[h]; t++) {
+       for (int j = 0; j < N; j++) {
+         double alphabuf = 0;
+         for (int i = 0; i < N; i++) {
+           alphabuf += alphas[i][t-1]*amat.get(i).get(j);
+         }
+         alphas[j][t] = alphabuf*vocabmatch(observ.get(h)[t], j, vocab, bmat);
+       }
+     }
+     
+      double[][] betas = new double[N][numobs[h]];
+      for (int init = 0; init < N; init++) {
+        betas[init][numobs[h]-1] = 1;
+      }
+      for (int t = numobs[h]-1; t > 0; t--) {
+        for (int i = 0; i < N; i++) {
+          double betabuf = 0;
+          for (int j = 0; j < N; j++) {
+            betabuf += betas[j][t]*amat.get(i).get(j)*vocabmatch(observ.get(h)[t], j, vocab, bmat);
+          }
+          betas[i][t-1] = betabuf;
+        }
+      } */
+      
+  /*    
+      } */
+      
+      for (int h = 0; h < numsets; h++) {
+        double[][] deltas = new double[N][numobs[h]];
+        double[][] psis = new double[N][numobs[h]];
+        for (int init = 0; init < N; init++) {
+          deltas[init][0] = pi[init]*vocabmatch(observ.get(h)[0], init, vocab, bmat);
+        }
+        for (int init = 0; init < N; init++) {
+          psis[init][0] = 0;
+        }
+        
+        for (int t = 0; t < numobs[h]-1; t++) {
+          double[] maxarray = new double[N];
+          for (int j = 0; j < N; j++) {
+            for (int i = 0; i < N; i++) {
+              maxarray[i] = deltas[i][t]*amat.get(i).get(j)*vocabmatch(observ.get(h)[t+1], j, vocab, bmat);
+            }
+            double[] maxargmax = new double[2];
+            maxargmax = arraysort(maxarray);
+            deltas[j][t+1] = maxargmax[0];
+            psis[j][t+1] = maxargmax[1];
+          }
+        }
+        double[] maxarray = new double[N];
+        for (int i = 0; i < N; i++) {
+         maxarray[i] = deltas[i][deltas[0].length-1];
+        }
+        double[] maxandarg = backtracksort(maxarray);
+        System.out.print(maxandarg[0] + " ");
+        try {
+          int[] states = new int[numobs[h]];
+          states[numobs[h]-1] = (int)maxandarg[1];
+          for (int i = numobs[h]-2; i >= 0; i--) {
+            states[i] = (int)psis[states[i+1]][i+1];
+          }
+          for (int i = 0; i < states.length; i++) {
+            System.out.print(syntax[states[i]] + " ");
+          }
+          System.out.println();
+        } catch (ArrayIndexOutOfBoundsException e) {
+          System.out.println();
+        }
+      }
+ }
+   
+  
+   
+ 
+ 
+ public static double vocabmatch(String obs, int state, 
+                                 String[] vocab, ArrayList<ArrayList<Double>> bmat) {
+   for (int i = 0; i < vocab.length; i++) {
+     if (obs.equals(vocab[i])) {   
+       return bmat.get(state).get(i);
+     }
+   }
+   return 0.0;
+ }
+ 
+ public static double[] arraysort(double[] arr) {
+   int index = 0;
+   for (int i = 1; i < arr.length; i++) {
+     if (arr[i-1] > arr[i]) {
+       arr[i] = arr[i-1];
+     } else {
+       index = i;
+     }
+   }
+   double[] maxes = new double[2];
+   maxes[0] = arr[arr.length-1];
+   maxes[1] = index;
+   return maxes;
+ }
+ 
+ public static double[] backtracksort(double[] arr) {
+   int index = 0;
+   for (int i = 1; i < arr.length; i++) {
+     if (arr[i-1] > arr[i]) {
+       arr[i] = arr[i-1];
+     } else {
+       index = i;
+     }
+   }
+   double[] maxes = new double[2];
+   maxes[0] = arr[arr.length-1];
+   if (maxes[0] != 0.0) {
+     maxes[1] = index;
+   } else {
+     maxes[1] = arr.length;
+   }
+   return maxes;
+ }
+ 
+}
